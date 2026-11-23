@@ -55,6 +55,11 @@
         .arrow { color: #502379; display: inline-block; transition: transform 0.2s ease; }
         details[open] .arrow { transform: rotate(90deg); }
         details > summary:hover .summary-text { color: #502379; }
+        .summary-time { white-space: nowrap; font-weight: normal; font-size: 13px; color: #666; }
+        details[open] .summary-time { display: none; }   /* line count only while folded */
+        .summary-right { display: flex; gap: 12px; align-items: baseline; }
+        .example-link { font-weight: normal; font-size: 13px; }
+        .example-link[hidden] { display: none; }
         .section-body { padding-top: 6px; }
 
         /* Receipt-style rows */
@@ -89,11 +94,11 @@
         .push.ab { width: 38px; height: 38px; }
         .push.ab::after { inset: 6px; background: #fff; }
         .label { position: absolute; color: #fff; font: bold 13px system-ui, sans-serif; }
-        #btnA { left: 22px; top: 97px; }  #lblA { left: 39px; top: 150px; }
+        #btnA { left: 22px; top: 97px; }  #lblA { left: 41px; top: 76px; }
         #btnB { right: 22px; top: 97px; } #lblB { right: 39px; top: 76px; }
-        #btnAB { right: 26px; top: 172px; } #lblAB { right: 72px; top: 182px; font-size: 11px; }
-        #btnShake { right: 78px; top: 22px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
-        #lblShake { right: 26px; top: 22px; font-size: 11px; }
+        #btnAB { right: 26px; top: 172px; } #lblAB { right: 34px; top: 152px; font-size: 11px; }
+        #btnShake { right: 26px; top: 16px; width: 38px; height: 38px; background: none; }
+        #btnShake svg { width: 100%; height: 100%; display: block; }
         #status { text-align: center; font-size: 13px; color: #666; margin-top: 12px; }
         #err { text-align: center; font-size: 13px; color: #b00020; white-space: pre-wrap; margin-top: 6px; }
         textarea {
@@ -136,7 +141,12 @@
                 <button class="btn push" id="btnA" title="A"></button><span class="label" id="lblA">A</span>
                 <button class="btn push" id="btnB" title="B"></button><span class="label" id="lblB">B</span>
                 <button class="btn push ab" id="btnAB" title="A+B"></button><span class="label" id="lblAB">A+B</span>
-                <button class="btn" id="btnShake" title="Shake"></button><span class="label" id="lblShake">SHAKE</span>
+                <button class="btn" id="btnShake" title="Shake" aria-label="Shake">
+                    <svg viewBox="0 0 28 28" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="5" width="10" height="18" rx="2"/>
+                        <path d="M5.5 9.5 Q4 14 5.5 18.5 M22.5 9.5 Q24 14 22.5 18.5 M2 7 Q-0.5 14 2 21 M26 7 Q28.5 14 26 21"/>
+                    </svg>
+                </button>
             </div>
         </div>
         <div id="status"></div>
@@ -147,11 +157,15 @@
         <details open>
             <summary>
                 <span class="summary-title"><span class="arrow">&#9656;</span>
-                    <span class="summary-text"><span class="de">Programm</span><span class="en">Program</span></span>
+                    <span class="summary-text"><span class="de">Quellcode</span><span class="en">Source code</span></span>
+                </span>
+                <span class="summary-right">
+                    <a href="#" class="example-link" id="loadExample"><span class="de">Beispiel laden</span><span class="en">Load example</span></a>
+                    <span class="summary-time" id="lineCount"></span>
                 </span>
             </summary>
             <div class="section-body">
-                <textarea id="code" spellcheck="false" placeholder="MakeCode .ts / JavaScript"></textarea>
+                <textarea id="code" spellcheck="false" autocomplete="off" placeholder="MakeCode .ts / JavaScript"></textarea>
             </div>
         </details>
 
@@ -180,7 +194,7 @@
         <details>
             <summary>
                 <span class="summary-title"><span class="arrow">&#9656;</span>
-                    <span class="summary-text"><span class="de">Unterstützt</span><span class="en">Supported</span></span>
+                    <span class="summary-text"><span class="de">Unterstützte Sprachelemente</span><span class="en">Supported language elements</span></span>
                 </span>
             </summary>
             <div class="section-body">
@@ -192,8 +206,8 @@
                 <div class="item"><span class="item-name">Music</span><span class="item-price">melodies, tone, rest</span></div>
                 <div class="item"><span class="item-name">Math</span><span class="item-price">pick random, random true/false, Math</span></div>
                 <p class="note">
-                    <span class="de">Nicht dabei: Funk, Pins, Sensoren, Logo, Spielstand und Buchstaben in „show string“. Ein nicht unterstützter Block stoppt das Programm mit einer Meldung.</span>
-                    <span class="en">Not included: radio, pins, sensors, logo, game score and letters in "show string". An unsupported block stops the program with a message.</span>
+                    <span class="de">Nicht dabei: Funk, Pins, Sensoren, Logo und Spielstand. Ein nicht unterstützter Block stoppt das Programm mit einer Meldung.</span>
+                    <span class="en">Not included: radio, pins, sensors, logo and game score. An unsupported block stops the program with a message.</span>
                 </p>
             </div>
         </details>
@@ -320,22 +334,39 @@ const ARROWS = [  // North, NorthEast, East, SouthEast, South, SouthWest, West, 
   ". . # . . / . # . . . / # # # # # / . # . . . / . . # . .",
   "# # # . . / # # . . . / # . # . . / . . . # . / . . . . #",
 ];
-const FONT = {
-  "0": ". # # . . / # . . # . / # . . # . / # . . # . / . # # . .",
-  "1": ". . # . . / . # # . . / . . # . . / . . # . . / . # # # .",
-  "2": "# # # . . / . . . # . / . # # . . / # . . . . / # # # # .",
-  "3": "# # # # . / . . . # . / . . # . . / # . . # . / . # # . .",
-  "4": ". . # # . / . # . # . / # . . # . / # # # # # / . . . # .",
-  "5": "# # # # # / # . . . . / # # # # . / . . . . # / # # # # .",
-  "6": ". . . # . / . . # . . / . # # # . / # . . . # / . # # # .",
-  "7": "# # # # # / . . . # . / . . # . . / . # . . . / # . . . .",
-  "8": ". # # # . / # . . . # / . # # # . / # . . . # / . # # # .",
-  "9": ". # # # . / # . . . # / . # # # . / . . # . . / . # . . .",
-  "-": ". . . . . / . . . . . / . # # # . / . . . . . / . . . . .",
-  ".": ". . . . . / . . . . . / . . . . . / . . . . . / . . # . .",
-  " ": ". . . . . / . . . . . / . . . . . / . . . . . / . . . . .",
+// micro:bit font "pendolino3" from codal-core (BitmapFont.cpp): ASCII 32..126, 5 rows per character,
+// bit 0x10 = left column ... 0x01 = right column
+const FONT_DATA = [
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x08, 0x08, 0x00, 0x08, 0x0a, 0x0a, 0x00, 0x00, 0x00, 0x0a, 0x1f, 0x0a, 0x1f, 0x0a,
+  0x0e, 0x19, 0x0e, 0x13, 0x0e, 0x19, 0x12, 0x04, 0x09, 0x13, 0x0c, 0x12, 0x0c, 0x12, 0x0d, 0x08, 0x08, 0x00, 0x00, 0x00,
+  0x04, 0x08, 0x08, 0x08, 0x04, 0x08, 0x04, 0x04, 0x04, 0x08, 0x00, 0x0a, 0x04, 0x0a, 0x00, 0x00, 0x04, 0x0e, 0x04, 0x00,
+  0x00, 0x00, 0x00, 0x04, 0x08, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x01, 0x02, 0x04, 0x08, 0x10,
+  0x0c, 0x12, 0x12, 0x12, 0x0c, 0x04, 0x0c, 0x04, 0x04, 0x0e, 0x1c, 0x02, 0x0c, 0x10, 0x1e, 0x1e, 0x02, 0x04, 0x12, 0x0c,
+  0x06, 0x0a, 0x12, 0x1f, 0x02, 0x1f, 0x10, 0x1e, 0x01, 0x1e, 0x02, 0x04, 0x0e, 0x11, 0x0e, 0x1f, 0x02, 0x04, 0x08, 0x10,
+  0x0e, 0x11, 0x0e, 0x11, 0x0e, 0x0e, 0x11, 0x0e, 0x04, 0x08, 0x00, 0x08, 0x00, 0x08, 0x00, 0x00, 0x04, 0x00, 0x04, 0x08,
+  0x02, 0x04, 0x08, 0x04, 0x02, 0x00, 0x0e, 0x00, 0x0e, 0x00, 0x08, 0x04, 0x02, 0x04, 0x08, 0x0e, 0x11, 0x06, 0x00, 0x04,
+  0x0e, 0x11, 0x15, 0x13, 0x0c, 0x0c, 0x12, 0x1e, 0x12, 0x12, 0x1c, 0x12, 0x1c, 0x12, 0x1c, 0x0e, 0x10, 0x10, 0x10, 0x0e,
+  0x1c, 0x12, 0x12, 0x12, 0x1c, 0x1e, 0x10, 0x1c, 0x10, 0x1e, 0x1e, 0x10, 0x1c, 0x10, 0x10, 0x0e, 0x10, 0x13, 0x11, 0x0e,
+  0x12, 0x12, 0x1e, 0x12, 0x12, 0x1c, 0x08, 0x08, 0x08, 0x1c, 0x1f, 0x02, 0x02, 0x12, 0x0c, 0x12, 0x14, 0x18, 0x14, 0x12,
+  0x10, 0x10, 0x10, 0x10, 0x1e, 0x11, 0x1b, 0x15, 0x11, 0x11, 0x11, 0x19, 0x15, 0x13, 0x11, 0x0c, 0x12, 0x12, 0x12, 0x0c,
+  0x1c, 0x12, 0x1c, 0x10, 0x10, 0x0c, 0x12, 0x12, 0x0c, 0x06, 0x1c, 0x12, 0x1c, 0x12, 0x11, 0x0e, 0x10, 0x0c, 0x02, 0x1c,
+  0x1f, 0x04, 0x04, 0x04, 0x04, 0x12, 0x12, 0x12, 0x12, 0x0c, 0x11, 0x11, 0x11, 0x0a, 0x04, 0x11, 0x11, 0x15, 0x1b, 0x11,
+  0x12, 0x12, 0x0c, 0x12, 0x12, 0x11, 0x0a, 0x04, 0x04, 0x04, 0x1e, 0x04, 0x08, 0x10, 0x1e, 0x0e, 0x08, 0x08, 0x08, 0x0e,
+  0x10, 0x08, 0x04, 0x02, 0x01, 0x0e, 0x02, 0x02, 0x02, 0x0e, 0x04, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1f,
+  0x08, 0x04, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x12, 0x12, 0x0f, 0x10, 0x10, 0x1c, 0x12, 0x1c, 0x00, 0x0e, 0x10, 0x10, 0x0e,
+  0x02, 0x02, 0x0e, 0x12, 0x0e, 0x0c, 0x12, 0x1c, 0x10, 0x0e, 0x06, 0x08, 0x1c, 0x08, 0x08, 0x0e, 0x12, 0x0e, 0x02, 0x0c,
+  0x10, 0x10, 0x1c, 0x12, 0x12, 0x08, 0x00, 0x08, 0x08, 0x08, 0x02, 0x00, 0x02, 0x02, 0x0c, 0x10, 0x14, 0x18, 0x14, 0x12,
+  0x08, 0x08, 0x08, 0x08, 0x06, 0x00, 0x1b, 0x15, 0x11, 0x11, 0x00, 0x1c, 0x12, 0x12, 0x12, 0x00, 0x0c, 0x12, 0x12, 0x0c,
+  0x00, 0x1c, 0x12, 0x1c, 0x10, 0x00, 0x0e, 0x12, 0x0e, 0x02, 0x00, 0x0e, 0x10, 0x10, 0x10, 0x00, 0x06, 0x08, 0x04, 0x18,
+  0x08, 0x08, 0x0e, 0x08, 0x07, 0x00, 0x12, 0x12, 0x12, 0x0f, 0x00, 0x11, 0x11, 0x0a, 0x04, 0x00, 0x11, 0x11, 0x15, 0x1b,
+  0x00, 0x12, 0x0c, 0x0c, 0x12, 0x00, 0x11, 0x0a, 0x04, 0x18, 0x00, 0x1e, 0x04, 0x08, 0x1e, 0x06, 0x04, 0x0c, 0x04, 0x06,
+  0x08, 0x08, 0x08, 0x08, 0x08, 0x18, 0x08, 0x0c, 0x08, 0x18, 0x00, 0x00, 0x0c, 0x03, 0x00
+];
+const glyph = ch => {
+  const c = ch.charCodeAt(0);
+  if (c < 32 || c > 126) return pic(ICONS.SmallSquare);       // characters outside the font: small square
+  return FONT_DATA.slice((c - 32) * 5, (c - 32) * 5 + 5).map(v => [0x10, 8, 4, 2, 1].map(m => (v & m ? 255 : 0)));
 };
-const glyph = ch => pic(FONT[ch] || ICONS.SmallSquare);   // letters are not in the font: shown as a small square
 
 // ---------------------------------------------------------------- micro:bit API
 const strict = (name, o) => new Proxy(o, { get(t, k) {
@@ -352,7 +383,7 @@ async function showString(text, interval = 150) {
   if (text.length === 1) { new Img(glyph(text)).plotImage(0); await wait(interval * 5); return; }
   const rows = [[], [], [], [], []];                 // build one wide image and scroll it
   const add = g => g.forEach((r, y) => rows[y].push(...r, 0));
-  add(pic(FONT[" "]));
+  add(glyph(" "));
   for (const ch of text) add(glyph(ch));
   const img = new Img(rows);
   for (let off = 0; off <= img.width() - 5; off++) { img.plotImage(off); await wait(interval); }
@@ -497,6 +528,36 @@ let startTime = performance.now();
 const STATUS = { "Stopped": "Gestoppt", "Running": "Läuft", "Stopped (error)": "Gestoppt (Fehler)" };
 let lang = "de", statusKey = "Stopped";
 function setStatus(t) { statusKey = t; document.getElementById("status").textContent = lang === "de" ? (STATUS[t] || t) : t; }
+function updateLineCount() {             // shown next to "Source code" while the section is folded
+  const text = document.getElementById("code").value.replace(/\s+$/, "");
+  const n = text ? text.split("\n").length : 0;
+  document.getElementById("lineCount").textContent =
+    lang === "de" ? `${n} ${n === 1 ? "Zeile" : "Zeilen"}` : `${n} ${n === 1 ? "line" : "lines"}`;
+  document.getElementById("loadExample").hidden = n > 0;   // offer the example only for an empty code box
+}
+document.getElementById("code").addEventListener("input", updateLineCount);
+const EXAMPLE = `input.onButtonPressed(Button.A, function () {
+    basic.showString("A")
+})
+input.onButtonPressed(Button.B, function () {
+    music.play(music.builtInPlayableMelody(Melodies.PowerUp), music.PlaybackMode.InBackground)
+    basic.showString("B")
+})
+input.onButtonPressed(Button.AB, function () {
+    music.play(music.builtInPlayableMelody(Melodies.JumpUp), music.PlaybackMode.InBackground)
+    basic.showIcon(IconNames.Happy)
+})
+input.onGesture(Gesture.Shake, function () {
+    music.play(music.builtInPlayableMelody(Melodies.Wawawawaa), music.PlaybackMode.InBackground)
+    basic.showIcon(IconNames.Sad)
+})
+`;
+document.getElementById("loadExample").addEventListener("click", e => {
+  e.preventDefault(); e.stopPropagation();          // don't fold or unfold the section
+  document.getElementById("code").value = EXAMPLE;
+  e.target.closest("details").open = true;
+  updateLineCount();
+});
 function setLanguage(l) {
   lang = l;
   document.body.classList.toggle("lang-de", l === "de");
@@ -505,6 +566,7 @@ function setLanguage(l) {
   document.getElementById("langDE").classList.toggle("active", l === "de");
   document.getElementById("langEN").classList.toggle("active", l === "en");
   setStatus(statusKey);
+  updateLineCount();
 }
 document.getElementById("langDE").addEventListener("click", () => setLanguage("de"));
 document.getElementById("langEN").addEventListener("click", () => setLanguage("en"));
