@@ -5,8 +5,8 @@ A one-page micro:bit emulator for MakeCode programs. Paste a `.ts` file, press *
 ## Usage
 
 1. Open `micro-bit-emulator.html` in a browser on a computer, tablet or phone (Chrome, Edge, Firefox or Safari).
-2. Open the **Programm** section and paste the content of a MakeCode `.ts` file.
-3. Press **▶ Start** (EN: **Run**). **■ Stop** ends the program. After starting, you can fold the code section away.
+2. Paste the content of a MakeCode `.ts` file into the **Quellcode** section (EN: **Source code**).
+3. Press **▶ Start** (EN: **Run**). **■ Stop** ends the program. After starting, you can fold the code section away. While it's folded, its header shows the number of code lines.
 4. Click or tap the buttons on the board, or use the keyboard:
 
    | Key | Input |
@@ -27,10 +27,10 @@ The page uses the same receipt-style template as f418.eu: a white card with a Co
 | Part | Content |
 |---|---|
 | Header | Language switch, title, one-line subtitle |
-| Board | Start/Stop buttons, the simplified micro:bit (5×5 LEDs, A, B, A+B, Shake), status line and error messages. Always visible. |
-| **Programm** | The code box. Collapsible, open by default. |
+| Board | Start/Stop buttons, the simplified micro:bit (5×5 LEDs, buttons A, B and A+B with their labels above them, and a shake icon at the top right that works as the shake button), status line and error messages. Always visible. |
+| **Quellcode** / **Source code** | The code box. Collapsible, open by default. When folded, the number of lines appears on the right, for example "57 Zeilen" / "57 lines". While the box is empty, a link **Beispiel laden** / **Load example** appears there too. It fills in a small "Hello World": A shows "A", B shows "B" with a bonus sound (`PowerUp`), A+B shows a happy face with a cheerful melody (`JumpUp`), and shaking shows a sad face with a sad melody (`Wawawawaa`). |
 | **Bedienung** | Buttons and keys, plus short instructions. Collapsible, closed by default. |
-| **Unterstützt** | Supported block categories and what's missing. Collapsible, closed by default. |
+| **Unterstützte Sprachelemente** / **Supported language elements** | Supported block categories and what's missing. Collapsible, closed by default. |
 | Footer | Repository link, e-mail, date |
 
 **Mobile**:
@@ -84,7 +84,7 @@ The built-in waits are the same as in MakeCode's source code (`pxt-microbit/libs
 - gestures other than shake, and "button is pressed"
 - the built-in game score, lives, countdown and game-over screen
 - sprite `turn`, `if on edge, bounce` and blinking
-- letters and most symbols in `show string`: digits, `-`, `.` and spaces are drawn, every other character appears as a small square
+- characters outside printable ASCII (for example umlauts like ä, ö, ü) in `show string`: they appear as a small square
 - icons other than the 16 in the built-in list, and serial output
 
 Using an unsupported block stops the program with a message such as *"radio" is not supported by this emulator*.
@@ -102,7 +102,7 @@ The page is a single HTML file with no libraries. The favicon link (`../favicon.
    - the translated program runs as one function. Its parameters are the micro:bit namespaces (`basic`, `input`, `led`, `game`, `images`, `music`, …), which are simple JavaScript objects.
    - an unknown name, either a function inside a namespace or a whole namespace, ends the program with a clear message.
 3. **Fibers**: like the real micro:bit, each event handler and each `forever` loop runs side by side. If a button is pressed while its handler is still running, the press is queued and handled afterwards. **Stop** and **Run** cancel all running code at its next wait.
-4. **Display**: 25 LEDs with brightness 0–255, redrawn on every browser frame.
+4. **Display**: 25 LEDs with brightness 0–255, redrawn on every browser frame. Text uses the micro:bit's own 5×5 font, "pendolino3" from `codal-core`, covering ASCII 32–126: letters, digits and punctuation.
 5. **Sound**: built-in melodies such as `JumpUp`, `BaDing`, `PowerUp` and `Wawawawaa` are played as short square-wave note sequences through the Web Audio API. They sound similar to MakeCode but aren't the same.
 
 ## Tests
@@ -122,6 +122,7 @@ The emulator was tested in headless Chrome (Playwright) with the programs from t
   - an unsupported namespace (`radio`) and a syntax error are both reported
   - an endless loop without a pause keeps the page responsive
   - arrow functions with typed parameters and scrolling numbers work
+- **Built-in example**: after "Load example", A shows the letter A, B the letter B (with sound), A+B a happy face (with sound) and shake a sad face (with sound)
 
 ## Limits
 
