@@ -57,9 +57,14 @@
         details > summary:hover .summary-text { color: #502379; }
         .summary-time { white-space: nowrap; font-weight: normal; font-size: 13px; color: #666; }
         details[open] .summary-time { display: none; }   /* line count only while folded */
-        .summary-right { display: flex; gap: 12px; align-items: baseline; }
-        .example-link { font-weight: normal; font-size: 13px; }
-        .example-link[hidden] { display: none; }
+        .code-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .code-tools button {
+            font-family: inherit; font-size: 13px; padding: 5px 12px; border-radius: 14px;
+            border: 1px solid #502379; background: white; color: #502379; cursor: pointer;
+        }
+        .code-tools button:hover { background: #f3eef8; }
+        .code-tools #wrapLines { margin-left: auto; }
+        .code-tools #wrapLines[aria-pressed="true"] { background: #502379; color: white; }   /* pill toggle: filled = on */
         .section-body { padding-top: 6px; }
 
         /* Receipt-style rows */
@@ -99,12 +104,26 @@
         #btnAB { right: 26px; top: 172px; } #lblAB { right: 34px; top: 152px; font-size: 11px; }
         #btnShake { right: 26px; top: 16px; width: 38px; height: 38px; background: none; }
         #btnShake svg { width: 100%; height: 100%; display: block; }
+        .board-brand { position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+                       font: bold 13px 'Courier New', Courier, monospace; letter-spacing: 1px; color: #b8b8bd; pointer-events: none; }
         #status { text-align: center; font-size: 13px; color: #666; margin-top: 12px; }
         #err { text-align: center; font-size: 13px; color: #b00020; white-space: pre-wrap; margin-top: 6px; }
         textarea {
             width: 100%; min-height: 260px; padding: 10px; resize: vertical;
             font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; border: 1px solid #ddd; background: #fafafa;
         }
+
+        /* Confirmation popup (the browser's own confirm() is blocked in preview frames) */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .modal[hidden] { display: none; }
+        .modal-card { background: white; border: 1px solid #ddd; box-shadow: 0 4px 12px rgba(0,0,0,0.2); padding: 20px; width: 90%; max-width: 320px; }
+        .modal-card p { margin: 0 0 16px; font-size: 15px; font-weight: bold; text-align: center; }
+        .modal-buttons { display: flex; justify-content: center; gap: 10px; }
+        .modal-buttons button {
+            font-family: inherit; font-size: 14px; padding: 6px 16px; border-radius: 16px;
+            border: 1px solid #502379; background: white; color: #502379; cursor: pointer;
+        }
+        .modal-buttons #confirmYes { background: #502379; color: white; }
 
         @media (max-width: 600px) {
             body { padding: 8px; }
@@ -137,6 +156,7 @@
         </div>
         <div id="boardWrap">
             <div class="board" id="board">
+                <span class="board-brand">f418.eu</span>
                 <div class="leds" id="leds"></div>
                 <button class="btn push" id="btnA" title="A"></button><span class="label" id="lblA">A</span>
                 <button class="btn push" id="btnB" title="B"></button><span class="label" id="lblB">B</span>
@@ -159,13 +179,15 @@
                 <span class="summary-title"><span class="arrow">&#9656;</span>
                     <span class="summary-text"><span class="de">Quellcode</span><span class="en">Source code</span></span>
                 </span>
-                <span class="summary-right">
-                    <a href="#" class="example-link" id="loadExample"><span class="de">Beispiel laden</span><span class="en">Load example</span></a>
-                    <span class="summary-time" id="lineCount"></span>
-                </span>
+                <span class="summary-time" id="lineCount"></span>
             </summary>
             <div class="section-body">
-                <textarea id="code" spellcheck="false" autocomplete="off" placeholder="MakeCode .ts / JavaScript"></textarea>
+                <textarea id="code" spellcheck="false" autocomplete="off" wrap="off" placeholder="MakeCode .ts / JavaScript"></textarea>
+                <div class="code-tools">
+                    <button type="button" id="clearCode"><span class="de">Text löschen</span><span class="en">Delete text</span></button>
+                    <button type="button" id="prettyPrint"><span class="de">Formatieren</span><span class="en">Pretty-print</span></button>
+                    <button type="button" id="wrapLines" aria-pressed="false"><span class="de">Lange Zeilen umbrechen</span><span class="en">Wrap long lines</span></button>
+                </div>
             </div>
         </details>
 
@@ -174,7 +196,7 @@
         <details>
             <summary>
                 <span class="summary-title"><span class="arrow">&#9656;</span>
-                    <span class="summary-text"><span class="de">Bedienung</span><span class="en">How to use</span></span>
+                    <span class="summary-text"><span class="de">So bedienst du den Emulator</span><span class="en">How to use the emulator</span></span>
                 </span>
             </summary>
             <div class="section-body">
@@ -218,6 +240,16 @@
             <span class="nowrap"><a href="https://github.com/fgreil/micro-bit" target="_blank" rel="noopener">github.com/fgreil/micro-bit</a> &star;</span>
             <span class="nowrap"><a href="mailto:info@f418.eu">info@f418.eu</a> &star;</span>
             <span class="nowrap">2026-11-23</span>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmBox" hidden>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmText">
+            <p id="confirmText"></p>
+            <div class="modal-buttons">
+                <button type="button" id="confirmNo"><span class="de">Abbrechen</span><span class="en">Cancel</span></button>
+                <button type="button" id="confirmYes"><span class="de">Löschen</span><span class="en">Delete</span></button>
+            </div>
         </div>
     </div>
 
@@ -533,30 +565,96 @@ function updateLineCount() {             // shown next to "Source code" while th
   const n = text ? text.split("\n").length : 0;
   document.getElementById("lineCount").textContent =
     lang === "de" ? `${n} ${n === 1 ? "Zeile" : "Zeilen"}` : `${n} ${n === 1 ? "line" : "lines"}`;
-  document.getElementById("loadExample").hidden = n > 0;   // offer the example only for an empty code box
 }
 document.getElementById("code").addEventListener("input", updateLineCount);
+// "Hello World" example, already in the code box when the page opens
 const EXAMPLE = `input.onButtonPressed(Button.A, function () {
     basic.showString("A")
 })
+
 input.onButtonPressed(Button.B, function () {
-    music.play(music.builtInPlayableMelody(Melodies.PowerUp), music.PlaybackMode.InBackground)
     basic.showString("B")
 })
+
 input.onButtonPressed(Button.AB, function () {
     music.play(music.builtInPlayableMelody(Melodies.JumpUp), music.PlaybackMode.InBackground)
     basic.showIcon(IconNames.Happy)
 })
+
 input.onGesture(Gesture.Shake, function () {
     music.play(music.builtInPlayableMelody(Melodies.Wawawawaa), music.PlaybackMode.InBackground)
     basic.showIcon(IconNames.Sad)
 })
 `;
-document.getElementById("loadExample").addEventListener("click", e => {
-  e.preventDefault(); e.stopPropagation();          // don't fold or unfold the section
-  document.getElementById("code").value = EXAMPLE;
-  e.target.closest("details").open = true;
-  updateLineCount();
+// Re-indent code like MakeCode: one level (4 spaces) for every line that leaves brackets open,
+// however many it opens, e.g. "onButtonPressed(Button.A, function () {". At most one blank line in a row.
+// Strings, template strings (LED pictures) and comments are skipped when counting brackets.
+function prettyPrint(src) {
+  const out = [], levels = [];               // levels: bracket depth at the start of each line that opened a level
+  let depth = 0, inTpl = false, inBlock = false, blank = 0;
+  for (const raw of src.replace(/\t/g, "    ").split("\n")) {
+    const line = raw.trim();
+    if (!line) { if (out.length && (inTpl || blank++ < 1)) out.push(""); continue; }
+    blank = 0;
+    let lead = 0;                              // closing brackets at the start of the line
+    if (!inTpl && !inBlock) for (const ch of line) { if (")]}".includes(ch)) lead++; else break; }
+    const indent = levels.filter(d => d < depth - lead).length;
+    out.push(" ".repeat(4 * indent) + line);
+    const start = depth;
+    let q = null;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i], n = line[i + 1];
+      if (inBlock) { if (c === "*" && n === "/") { inBlock = false; i++; } continue; }
+      if (inTpl) { if (c === "\\") i++; else if (c === "`") inTpl = false; continue; }
+      if (q) { if (c === "\\") i++; else if (c === q) q = null; continue; }
+      if (c === "/" && n === "/") break;
+      if (c === "/" && n === "*") { inBlock = true; i++; continue; }
+      if (c === '"' || c === "'") { q = c; continue; }
+      if (c === "`") { inTpl = true; continue; }
+      if ("({[".includes(c)) depth++;
+      else if (")}]".includes(c)) depth = Math.max(0, depth - 1);
+    }
+    while (levels.length && levels[levels.length - 1] >= depth) levels.pop();   // levels closed on this line
+    if (depth > start) levels.push(start);                                    // this line opened a level
+  }
+  while (out.length && out[out.length - 1] === "") out.pop();
+  return out.length ? out.join("\n") + "\n" : "";
+}
+function setCode(text) {
+  const box = document.getElementById("code");
+  box.value = text; updateLineCount(); box.focus();
+}
+// Own confirmation popup: resolves true for "Delete", false for "Cancel", Escape or a click beside the card
+function askConfirm(text) {
+  const box = document.getElementById("confirmBox");
+  document.getElementById("confirmText").textContent = text;
+  box.hidden = false;
+  document.getElementById("confirmNo").focus();
+  return new Promise(resolve => {
+    const done = ok => { box.hidden = true; box.onclick = null; document.removeEventListener("keydown", onKey, true); resolve(ok); };
+    const onKey = e => { if (e.key === "Escape") { e.stopPropagation(); done(false); } };
+    document.getElementById("confirmYes").onclick = () => done(true);
+    document.getElementById("confirmNo").onclick = () => done(false);
+    box.onclick = e => { if (e.target === box) done(false); };
+    document.addEventListener("keydown", onKey, true);
+  });
+}
+document.getElementById("clearCode").addEventListener("click", async () => {
+  if (!document.getElementById("code").value.trim()) return;           // nothing to delete
+  const question = lang === "de" ? "Den ganzen Quellcode löschen?" : "Delete all source code?";
+  if (await askConfirm(question)) setCode("");
+});
+document.getElementById("prettyPrint").addEventListener("click", () => setCode(prettyPrint(document.getElementById("code").value)));
+function applyWrap() {                    // off: long lines scroll sideways; on: they wrap inside the box
+  const on = document.getElementById("wrapLines").getAttribute("aria-pressed") === "true", box = document.getElementById("code");
+  box.wrap = on ? "soft" : "off";
+  box.style.whiteSpace = on ? "pre-wrap" : "pre";
+  box.style.overflowX = on ? "hidden" : "auto";
+}
+document.getElementById("wrapLines").addEventListener("click", e => {
+  const t = e.currentTarget;
+  t.setAttribute("aria-pressed", t.getAttribute("aria-pressed") === "true" ? "false" : "true");
+  applyWrap();
 });
 function setLanguage(l) {
   lang = l;
@@ -603,9 +701,11 @@ function fitBoard() {                   // shrink the board on very narrow scree
 }
 window.addEventListener("resize", fitBoard);
 fitBoard();
+document.getElementById("code").value = EXAMPLE;
+applyWrap();
 setLanguage("de");
 document.addEventListener("keydown", e => {
-  if (e.target.tagName === "TEXTAREA") return;
+  if (e.target.tagName === "TEXTAREA" || !document.getElementById("confirmBox").hidden) return;
   const k = { a: "btn:A", b: "btn:B", c: "btn:AB", s: "g:Shake" }[e.key.toLowerCase()];
   if (k) fire(k);
 });
