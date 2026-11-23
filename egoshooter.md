@@ -1,4 +1,4 @@
-# egoshooter.ts
+# notDoom (egoshooter)
 
 A minimal shooter for the BBC micro:bit **V2**, played on the 5×5 LED display. It uses sprites from the MakeCode **Game** category and built-in melodies from the **Music** category. Code comments are in simple German for 3rd-grade pupils.
 
@@ -8,7 +8,14 @@ A minimal shooter for the BBC micro:bit **V2**, played on the 5×5 LED display. 
 |---|---|
 | `egoshooter.ts` | MakeCode JavaScript. Paste it into the JavaScript tab, then switch to Blocks. |
 | `egoshooter.md` | This documentation. |
+| `egoshooter.svg` | Block diagram of the program, made with `ts2blocks.py` |
 | `Kurzanleitung.md` | How to play, in German, for children. It doesn't mention the code. |
+
+## Blocks
+
+![notDoom blocks](egoshooter.svg)
+
+Drawn with `ts2blocks.py` (`python3 ts2blocks.py egoshooter.ts`). Regenerate it after every code change.
 
 ## Gameplay rules
 
