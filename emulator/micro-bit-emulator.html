@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>micro:bit Emulator</title>
-    <link rel="icon" type="image/png" href="../favicon.png">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAZklEQVQ4T8WOUQ4AMQQFuf+hbdrkCapR7cfOj5BnYBEReoCfBUSkguFi5m21OTAFbpAsZlXz+ADDeMku2jlYPgDxYqya6wiAm6fbDUrB9vLpBwjGviUYIHYlsJErAcCi6ytBxf+CD9JFpdEDhmt+AAAAAElFTkSuQmCC">
     <style>
         * { box-sizing: border-box; }
         body {
@@ -42,7 +42,6 @@
             text-align: center; font-size: clamp(22px, 6vw, 32px); font-weight: bold;
             margin-bottom: 5px; letter-spacing: 2px; line-height: 1.2;
         }
-        .subtitle { text-align: center; font-size: 15px; line-height: 1.4; margin: 8px 0 20px; color: #666; }
         .divider { border-top: 1px dashed #333; margin: 15px 0; }
 
         /* Collapsible sections */
@@ -143,10 +142,6 @@
         </div>
 
         <div class="store-name">micro:bit Emulator</div>
-        <div class="subtitle">
-            <span class="de">MakeCode-Programm einfügen, starten, ausprobieren.</span>
-            <span class="en">Paste a MakeCode program, run it, try it out.</span>
-        </div>
 
         <div class="divider"></div>
 
@@ -174,19 +169,18 @@
 
         <div class="divider"></div>
 
-        <details open>
+        <details>
             <summary>
                 <span class="summary-title"><span class="arrow">&#9656;</span>
-                    <span class="summary-text"><span class="de">Quellcode</span><span class="en">Source code</span></span>
+                    <span class="summary-text"><span class="de">Programm-Code editieren</span><span class="en">Edit source code</span></span>
                 </span>
                 <span class="summary-time" id="lineCount"></span>
             </summary>
             <div class="section-body">
-                <textarea id="code" spellcheck="false" autocomplete="off" wrap="off" placeholder="MakeCode .ts / JavaScript"></textarea>
+                <textarea id="code" spellcheck="false" autocomplete="off" wrap="soft" placeholder="MakeCode .ts / JavaScript"></textarea>
                 <div class="code-tools">
                     <button type="button" id="clearCode"><span class="de">Text löschen</span><span class="en">Delete text</span></button>
-                    <button type="button" id="prettyPrint"><span class="de">Formatieren</span><span class="en">Pretty-print</span></button>
-                    <button type="button" id="wrapLines" aria-pressed="false"><span class="de">Lange Zeilen umbrechen</span><span class="en">Wrap long lines</span></button>
+                    <button type="button" id="wrapLines" aria-pressed="true"><span class="de">Lange Zeilen umbrechen</span><span class="en">Wrap long lines</span></button>
                 </div>
             </div>
         </details>
@@ -293,7 +287,8 @@ async function __tick() {                // inserted into every loop so the page
 function fail(e) {
   let msg = (e && e.message) || String(e);
   const m = e instanceof ReferenceError && msg.match(/^(\S+) is not defined/);
-  if (m) msg = `"${m[1]}" is not supported by this emulator (or not defined in the program)`;
+  if (m) msg = say(`"${m[1]}" wird von diesem Emulator nicht unterstützt (oder fehlt im Programm)`,
+                   `"${m[1]}" is not supported by this emulator (or not defined in the program)`);
   document.getElementById("err").textContent = msg;
   stop("Stopped (error)");
 }
@@ -403,7 +398,7 @@ const glyph = ch => {
 // ---------------------------------------------------------------- micro:bit API
 const strict = (name, o) => new Proxy(o, { get(t, k) {
   if (k in t || typeof k === "symbol") return t[k];
-  throw new Error(`${name}.${String(k)} is not supported by this emulator`);
+  throw new Error(say(`${name}.${String(k)} wird von diesem Emulator nicht unterstützt`, `${name}.${String(k)} is not supported by this emulator`));
 }});
 const names = () => new Proxy({}, { get: (t, k) => k });          // enums like Melodies.PowerUp -> "PowerUp"
 const randint = (a, b) => { if (a > b) [a, b] = [b, a]; return a + Math.floor(Math.random() * (b - a + 1)); };
@@ -426,7 +421,7 @@ const basic = strict("basic", {
   clearScreen() { screen.fill(0); },
   async showLeds(leds, interval = 400) { new Img(rowsFrom(leds)).plotImage(0); await wait(interval); },
   async showIcon(icon, interval = 600) {
-    if (!ICONS[icon]) throw new Error(`Icon "${icon}" is not supported by this emulator`);
+    if (!ICONS[icon]) throw new Error(say(`Das Symbol "${icon}" wird von diesem Emulator nicht unterstützt`, `Icon "${icon}" is not supported by this emulator`));
     new Img(pic(ICONS[icon])).plotImage(0); await wait(interval);
   },
   async showArrow(dir, interval = 600) { new Img(pic(ARROWS[((dir % 8) + 8) % 8])).plotImage(0); await wait(interval); },
@@ -559,8 +554,9 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 let startTime = performance.now();
 const STATUS = { "Stopped": "Gestoppt", "Running": "Läuft", "Stopped (error)": "Gestoppt (Fehler)" };
 let lang = "de", statusKey = "Stopped";
+const say = (de, en) => lang === "de" ? de : en;   // pick the text for the page language
 function setStatus(t) { statusKey = t; document.getElementById("status").textContent = lang === "de" ? (STATUS[t] || t) : t; }
-function updateLineCount() {             // shown next to "Source code" while the section is folded
+function updateLineCount() {             // shown next to "Edit source code" while the section is folded
   const text = document.getElementById("code").value.replace(/\s+$/, "");
   const n = text ? text.split("\n").length : 0;
   document.getElementById("lineCount").textContent =
@@ -586,44 +582,6 @@ input.onGesture(Gesture.Shake, function () {
     basic.showIcon(IconNames.Sad)
 })
 `;
-// Re-indent code like MakeCode: one level (4 spaces) for every line that leaves brackets open,
-// however many it opens, e.g. "onButtonPressed(Button.A, function () {". At most one blank line in a row.
-// Strings, template strings (LED pictures) and comments are skipped when counting brackets.
-function prettyPrint(src) {
-  const out = [], levels = [];               // levels: bracket depth at the start of each line that opened a level
-  let depth = 0, inTpl = false, inBlock = false, blank = 0;
-  for (const raw of src.replace(/\t/g, "    ").split("\n")) {
-    const line = raw.trim();
-    if (!line) { if (out.length && (inTpl || blank++ < 1)) out.push(""); continue; }
-    blank = 0;
-    let lead = 0;                              // closing brackets at the start of the line
-    if (!inTpl && !inBlock) for (const ch of line) { if (")]}".includes(ch)) lead++; else break; }
-    const indent = levels.filter(d => d < depth - lead).length;
-    out.push(" ".repeat(4 * indent) + line);
-    const start = depth;
-    let q = null;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i], n = line[i + 1];
-      if (inBlock) { if (c === "*" && n === "/") { inBlock = false; i++; } continue; }
-      if (inTpl) { if (c === "\\") i++; else if (c === "`") inTpl = false; continue; }
-      if (q) { if (c === "\\") i++; else if (c === q) q = null; continue; }
-      if (c === "/" && n === "/") break;
-      if (c === "/" && n === "*") { inBlock = true; i++; continue; }
-      if (c === '"' || c === "'") { q = c; continue; }
-      if (c === "`") { inTpl = true; continue; }
-      if ("({[".includes(c)) depth++;
-      else if (")}]".includes(c)) depth = Math.max(0, depth - 1);
-    }
-    while (levels.length && levels[levels.length - 1] >= depth) levels.pop();   // levels closed on this line
-    if (depth > start) levels.push(start);                                    // this line opened a level
-  }
-  while (out.length && out[out.length - 1] === "") out.pop();
-  return out.length ? out.join("\n") + "\n" : "";
-}
-function setCode(text) {
-  const box = document.getElementById("code");
-  box.value = text; updateLineCount(); box.focus();
-}
 // Own confirmation popup: resolves true for "Delete", false for "Cancel", Escape or a click beside the card
 function askConfirm(text) {
   const box = document.getElementById("confirmBox");
@@ -642,9 +600,8 @@ function askConfirm(text) {
 document.getElementById("clearCode").addEventListener("click", async () => {
   if (!document.getElementById("code").value.trim()) return;           // nothing to delete
   const question = lang === "de" ? "Den ganzen Quellcode löschen?" : "Delete all source code?";
-  if (await askConfirm(question)) setCode("");
+  if (await askConfirm(question)) { document.getElementById("code").value = ""; updateLineCount(); }
 });
-document.getElementById("prettyPrint").addEventListener("click", () => setCode(prettyPrint(document.getElementById("code").value)));
 function applyWrap() {                    // off: long lines scroll sideways; on: they wrap inside the box
   const on = document.getElementById("wrapLines").getAttribute("aria-pressed") === "true", box = document.getElementById("code");
   box.wrap = on ? "soft" : "off";
@@ -680,7 +637,7 @@ async function run() {
   if (audio && audio.state === "suspended") audio.resume();
   let program;
   try { program = new AsyncFunction(...Object.keys(API), transpile(document.getElementById("code").value)); }
-  catch (e) { fail(new Error("Syntax error: " + e.message)); return; }
+  catch (e) { fail(new Error(say("Syntaxfehler: ", "Syntax error: ") + e.message)); return; }
   startTime = performance.now();
   setStatus("Running");
   const g = gen;
