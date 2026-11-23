@@ -8,6 +8,13 @@ A small MakeCode program for the BBC micro:bit **V2**. It flips a coin, rolls a 
 |---|---|
 | `dice.ts` | MakeCode JavaScript. Paste it into the JavaScript tab, then switch to Blocks. |
 | `dice.md` | This documentation. |
+| `dice.svg` | Block diagram of the program, made with `ts2blocks.py` |
+
+## Blocks
+
+![Dice blocks](dice.svg)
+
+Drawn with `ts2blocks.py` (`python3 ts2blocks.py dice.ts`). Regenerate it after every code change.
 
 ## Controls
 
