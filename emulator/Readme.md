@@ -5,8 +5,8 @@ A one-page micro:bit emulator for MakeCode programs. Paste a `.ts` file, press *
 ## Usage
 
 1. Open `micro-bit-emulator.html` in a browser on a computer, tablet or phone (Chrome, Edge, Firefox or Safari).
-2. The **Quellcode** section (EN: **Source code**) already contains a small example, so you can press **Start** right away. For your own program, delete the example and paste the content of a MakeCode `.ts` file.
-3. Press **▶ Start** (EN: **Run**). **■ Stop** ends the program. After starting, you can fold the code section away. While it's folded, its header shows the number of code lines.
+2. A small example is already loaded, so you can press **Start** right away. For your own program, open **Programm-Code editieren** (EN: **Edit source code**), delete the example and paste the content of a MakeCode `.ts` file.
+3. Press **▶ Start** (EN: **Run**). **■ Stop** ends the program. The code section is folded when the page opens. While it's folded, its header shows the number of code lines.
 4. Click or tap the buttons on the board, or use the keyboard:
 
    | Key | Input |
@@ -26,9 +26,9 @@ The page uses the same receipt-style template as f418.eu: a white card with a Co
 
 | Part | Content |
 |---|---|
-| Header | Language switch, title, one-line subtitle |
-| Board | Start/Stop buttons, the simplified micro:bit (5×5 LEDs, buttons A, B and A+B with their labels above them, and a shake icon at the top right that works as the shake button), status line and error messages. Always visible. A logo slot sits centred at the top of the board: if a file `microbit-logo.svg` is placed next to the page, it is shown there (26 px high). Without the file nothing is shown. The logo file isn't included and has to come from the official micro:bit brand resources. |
-| **Quellcode** / **Source code** | The code box. Collapsible, open by default. When the page opens, it already contains a small "Hello World" without comments, with a blank line between the blocks: A shows "A", B shows "B", A+B shows a happy face with a cheerful melody (`JumpUp`), and shaking shows a sad face with a sad melody (`Wawawawaa`). When folded, the number of lines appears on the right, for example "17 Zeilen" / "17 lines". Below the box (only while it's open) are two buttons. **Text löschen** / **Delete text** empties the box after a confirmation popup ("Den ganzen Quellcode löschen?" / "Delete all source code?") with **Abbrechen** / **Cancel** and **Löschen** / **Delete**. Escape or a click beside the popup also cancels. An empty box is left alone, without a popup. The popup is part of the page, because browsers silently block their own `confirm()` box when the page runs inside a preview frame. **Formatieren** / **Pretty-print** re-indents the code. The pill toggle **Lange Zeilen umbrechen** / **Wrap long lines** is off by default (outlined), so long lines scroll sideways and the indentation stays readable. Switched on (filled purple), long lines wrap inside the box. |
+| Header | Language switch and title |
+| Board | Start/Stop buttons, the simplified micro:bit (5×5 LEDs, buttons A, B and A+B with their labels above them, and a shake icon at the top right that works as the shake button), status line and error messages. Always visible. The text "f418.eu" sits centred at the top of the board, light grey in the page's Courier font. It's plain text, not a link. |
+| **Programm-Code editieren** / **Edit source code** | The code box. Collapsible, closed by default. When the page opens, it already contains a small "Hello World" without comments, with a blank line between the blocks: A shows "A", B shows "B", A+B shows a happy face with a cheerful melody (`JumpUp`), and shaking shows a sad face with a sad melody (`Wawawawaa`). When folded, the number of lines appears on the right, for example "17 Zeilen" / "17 lines". Below the box (only while it's open) are a button and a toggle. **Text löschen** / **Delete text** empties the box after a confirmation popup ("Den ganzen Quellcode löschen?" / "Delete all source code?") with **Abbrechen** / **Cancel** and **Löschen** / **Delete**. Escape or a click beside the popup also cancels. An empty box is left alone, without a popup. After deleting, the cursor doesn't jump into the box, so the keys A/B/C/S keep working. The popup is part of the page, because browsers silently block their own `confirm()` box when the page runs inside a preview frame. The pill toggle **Lange Zeilen umbrechen** / **Wrap long lines** is on by default (filled purple), so long lines wrap inside the box and nothing scrolls sideways. Switched off (outlined), long lines scroll sideways and the indentation stays in straight columns. |
 | **So bedienst du den Emulator** / **How to use the emulator** | Buttons and keys, plus short instructions. Collapsible, closed by default. |
 | **Unterstützte Sprachelemente** / **Supported language elements** | Supported block categories and what's missing. Collapsible, closed by default. |
 | Footer | Repository link, e-mail, date |
@@ -38,7 +38,7 @@ The page uses the same receipt-style template as f418.eu: a white card with a Co
 - The code box uses 16 px text, so iPhones don't zoom in while typing.
 - Buttons react to taps without the double-tap delay.
 
-The texts on the page switch between German and English. Error messages from the emulator are always in English.
+The texts on the page switch between German and English, and so do the emulator's own error messages. The details the browser adds to a syntax error stay in English.
 
 ## What it runs
 
@@ -87,11 +87,11 @@ The built-in waits are the same as in MakeCode's source code (`pxt-microbit/libs
 - characters outside printable ASCII (for example umlauts like ä, ö, ü) in `show string`: they appear as a small square
 - icons other than the 16 in the built-in list, and serial output
 
-Using an unsupported block stops the program with a message such as *"radio" is not supported by this emulator*.
+Using an unsupported block stops the program with a message such as *"radio" wird von diesem Emulator nicht unterstützt* (EN: *"radio" is not supported by this emulator*).
 
 ## How it works
 
-The page is a single HTML file with no libraries. The favicon link (`../favicon.png`) expects the page to sit one folder below the site's favicon, as on f418.eu.
+The page is a single HTML file with no libraries. Even the favicon (the 16×16 f418.eu icon) is embedded as a data URI, so the page needs no other files.
 
 1. **Translation**: a few regular expressions turn the MakeCode code into JavaScript that the browser can run:
    - type annotations are removed
@@ -103,8 +103,7 @@ The page is a single HTML file with no libraries. The favicon link (`../favicon.
    - an unknown name, either a function inside a namespace or a whole namespace, ends the program with a clear message.
 3. **Fibers**: like the real micro:bit, each event handler and each `forever` loop runs side by side. If a button is pressed while its handler is still running, the press is queued and handled afterwards. **Stop** and **Run** cancel all running code at its next wait.
 4. **Display**: 25 LEDs with brightness 0–255, redrawn on every browser frame. Text uses the micro:bit's own 5×5 font, "pendolino3" from `codal-core`, covering ASCII 32–126: letters, digits and punctuation.
-5. **Pretty-print**: re-indents the code the way MakeCode formats its JavaScript. Each line that leaves brackets open (`(`, `[`, `{`) indents the following lines by one level of 4 spaces, however many brackets it opens: for example `input.onButtonPressed(Button.A, function () {` is one level. It also removes trailing spaces, keeps at most one blank line in a row and ignores brackets inside strings, template strings and comments. It doesn't add or remove line breaks, so code written on one long line stays on one line.
-6. **Sound**: built-in melodies such as `JumpUp`, `BaDing`, `PowerUp` and `Wawawawaa` are played as short square-wave note sequences through the Web Audio API. They sound similar to MakeCode but aren't the same.
+5. **Sound**: built-in melodies such as `JumpUp`, `BaDing`, `PowerUp` and `Wawawawaa` are played as short square-wave note sequences through the Web Audio API. They sound similar to MakeCode but aren't the same.
 
 ## Tests
 
@@ -123,7 +122,6 @@ The emulator was tested in headless Chrome (Playwright) with the programs from t
   - an unsupported namespace (`radio`) and a syntax error are both reported
   - an endless loop without a pause keeps the page responsive
   - arrow functions with typed parameters and scrolling numbers work
-- **Pretty-print**: all indentation was removed from `egoshooter.ts` and `dice.ts`, and **Formatieren** restored both files exactly as MakeCode formats them.
 - **Built-in example**: the example is in the code box when the page opens. A shows the letter A, B the letter B, A+B a happy face (with sound) and shake a sad face (with sound).
 
 ## Limits
