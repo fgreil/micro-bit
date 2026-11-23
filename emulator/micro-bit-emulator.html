@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>micro:bit Emulator</title>
+    <link rel="icon" type="image/png" href="../favicon.png">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f5f5f5;
+            color: #1d1d1f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .receipt {
+            background-color: white;
+            width: 100%;
+            max-width: 520px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+        }
+
+        /* Language toggle */
+        .top { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+        .lang-toggle { display: flex; background: #f5f5f7; border-radius: 20px; padding: 4px; gap: 4px; }
+        .lang-toggle button {
+            font-family: inherit; background: none; border: none; color: #86868b; cursor: pointer;
+            transition: all 0.3s ease; padding: 6px 16px; border-radius: 16px; font-size: 13px; font-weight: 500;
+        }
+        .lang-toggle button:hover:not(.active) { color: #1d1d1f; }
+        .lang-toggle button.active { background: #502379; color: white; }
+        body.lang-de .en, body.lang-en .de { display: none; }
+
+        .store-name {
+            text-align: center; font-size: clamp(22px, 6vw, 32px); font-weight: bold;
+            margin-bottom: 5px; letter-spacing: 2px; line-height: 1.2;
+        }
+        .subtitle { text-align: center; font-size: 15px; line-height: 1.4; margin: 8px 0 20px; color: #666; }
+        .divider { border-top: 1px dashed #333; margin: 15px 0; }
+
+        /* Collapsible sections */
+        details > summary {
+            list-style: none; cursor: pointer; display: flex; justify-content: space-between;
+            align-items: baseline; gap: 12px; font-weight: bold; font-size: 15px; padding: 4px 0; user-select: none;
+        }
+        details > summary::-webkit-details-marker { display: none; }
+        .summary-title { display: flex; gap: 8px; align-items: baseline; }
+        .arrow { color: #502379; display: inline-block; transition: transform 0.2s ease; }
+        details[open] .arrow { transform: rotate(90deg); }
+        details > summary:hover .summary-text { color: #502379; }
+        .section-body { padding-top: 6px; }
+
+        /* Receipt-style rows */
+        .item { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0; font-size: 14px; }
+        .item-name { flex: 1; }
+        .item-price { text-align: right; color: #502379; }
+        .note { font-size: 13px; line-height: 1.5; color: #666; margin: 10px 0; }
+
+        a { color: #502379; }
+        .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #666; }
+        .nowrap { white-space: nowrap; }
+        .footer a { color: #86868b; text-decoration: none; }
+        .footer a:hover { color: #1d1d1f; }
+
+        /* Emulator */
+        button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; }
+        .controls button {
+            font-family: inherit; font-size: 14px; font-weight: bold; padding: 7px 18px; border-radius: 16px;
+            border: 1px solid #502379; background: white; color: #502379; cursor: pointer;
+        }
+        .controls #run { background: #502379; color: white; }
+        #boardWrap { display: flex; justify-content: center; }
+        .board { position: relative; flex: 0 0 auto; width: 340px; height: 240px; background: #1d1d1f; border-radius: 22px;
+                 user-select: none; transform-origin: top center; }
+        .leds { position: absolute; left: 105px; top: 45px; display: grid; grid-template-columns: repeat(5, 10px); column-gap: 22px; row-gap: 16px; }
+        .led { width: 10px; height: 22px; border-radius: 3px; background: #333; transition: background 40ms; }
+        .btn { position: absolute; border: none; cursor: pointer; padding: 0; }
+        .btn:active { transform: scale(0.93); }
+        .push { width: 46px; height: 46px; border-radius: 8px; background: #8a8a8e; }
+        .push::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: #2b2b2e; }
+        .push.ab { width: 38px; height: 38px; }
+        .push.ab::after { inset: 6px; background: #fff; }
+        .label { position: absolute; color: #fff; font: bold 13px system-ui, sans-serif; }
+        #btnA { left: 22px; top: 97px; }  #lblA { left: 39px; top: 150px; }
+        #btnB { right: 22px; top: 97px; } #lblB { right: 39px; top: 76px; }
+        #btnAB { right: 26px; top: 172px; } #lblAB { right: 72px; top: 182px; font-size: 11px; }
+        #btnShake { right: 78px; top: 22px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+        #lblShake { right: 26px; top: 22px; font-size: 11px; }
+        #status { text-align: center; font-size: 13px; color: #666; margin-top: 12px; }
+        #err { text-align: center; font-size: 13px; color: #b00020; white-space: pre-wrap; margin-top: 6px; }
+        textarea {
+            width: 100%; min-height: 260px; padding: 10px; resize: vertical;
+            font: 13px/1.45 ui-monospace, Menlo, Consolas, monospace; border: 1px solid #ddd; background: #fafafa;
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .receipt { padding: 16px; }
+            .store-name { letter-spacing: 1px; }
+            textarea { font-size: 16px; }   /* stops iPhones from zooming in while typing */
+        }
+    </style>
+</head>
+<body class="lang-de">
+    <div class="receipt">
+        <div class="top">
+            <div class="lang-toggle">
+                <button type="button" id="langDE" class="active">DE</button>
+                <button type="button" id="langEN">EN</button>
+            </div>
+        </div>
+
+        <div class="store-name">micro:bit Emulator</div>
+        <div class="subtitle">
+            <span class="de">MakeCode-Programm einfügen, starten, ausprobieren.</span>
+            <span class="en">Paste a MakeCode program, run it, try it out.</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="controls">
+            <button type="button" id="run">&#9654; <span class="de">Start</span><span class="en">Run</span></button>
+            <button type="button" id="stop">&#9632; Stop</button>
+        </div>
+        <div id="boardWrap">
+            <div class="board" id="board">
+                <div class="leds" id="leds"></div>
+                <button class="btn push" id="btnA" title="A"></button><span class="label" id="lblA">A</span>
+                <button class="btn push" id="btnB" title="B"></button><span class="label" id="lblB">B</span>
+                <button class="btn push ab" id="btnAB" title="A+B"></button><span class="label" id="lblAB">A+B</span>
+                <button class="btn" id="btnShake" title="Shake"></button><span class="label" id="lblShake">SHAKE</span>
+            </div>
+        </div>
+        <div id="status"></div>
+        <div id="err"></div>
+
+        <div class="divider"></div>
+
+        <details open>
+            <summary>
+                <span class="summary-title"><span class="arrow">&#9656;</span>
+                    <span class="summary-text"><span class="de">Programm</span><span class="en">Program</span></span>
+                </span>
+            </summary>
+            <div class="section-body">
+                <textarea id="code" spellcheck="false" placeholder="MakeCode .ts / JavaScript"></textarea>
+            </div>
+        </details>
+
+        <div class="divider"></div>
+
+        <details>
+            <summary>
+                <span class="summary-title"><span class="arrow">&#9656;</span>
+                    <span class="summary-text"><span class="de">Bedienung</span><span class="en">How to use</span></span>
+                </span>
+            </summary>
+            <div class="section-body">
+                <div class="item"><span class="item-name"><span class="de">Knopf A</span><span class="en">Button A</span></span><span class="item-price"><span class="de">Taste</span><span class="en">key</span> A</span></div>
+                <div class="item"><span class="item-name"><span class="de">Knopf B</span><span class="en">Button B</span></span><span class="item-price"><span class="de">Taste</span><span class="en">key</span> B</span></div>
+                <div class="item"><span class="item-name"><span class="de">A und B zusammen</span><span class="en">A+B together</span></span><span class="item-price"><span class="de">Taste</span><span class="en">key</span> C</span></div>
+                <div class="item"><span class="item-name"><span class="de">Schütteln</span><span class="en">Shake</span></span><span class="item-price"><span class="de">Taste</span><span class="en">key</span> S</span></div>
+                <p class="note">
+                    <span class="de">Programm aus MakeCode (JavaScript-Ansicht) einfügen und auf Start drücken. Die Tasten funktionieren, solange das Textfeld nicht aktiv ist. Der Ton startet mit dem ersten Klick auf Start.</span>
+                    <span class="en">Paste a program from MakeCode's JavaScript view and press Run. The keys work while the text box isn't active. Sound starts with the first click on Run.</span>
+                </p>
+            </div>
+        </details>
+
+        <div class="divider"></div>
+
+        <details>
+            <summary>
+                <span class="summary-title"><span class="arrow">&#9656;</span>
+                    <span class="summary-text"><span class="de">Unterstützt</span><span class="en">Supported</span></span>
+                </span>
+            </summary>
+            <div class="section-body">
+                <div class="item"><span class="item-name">Basic</span><span class="item-price">show number/string/leds/icon/arrow, clear screen, pause, forever</span></div>
+                <div class="item"><span class="item-name">Input</span><span class="item-price">on button A/B/A+B, on shake</span></div>
+                <div class="item"><span class="item-name">LED</span><span class="item-price">plot, unplot, toggle, point, brightness</span></div>
+                <div class="item"><span class="item-name">Game</span><span class="item-price">sprites, pause, resume</span></div>
+                <div class="item"><span class="item-name">Images</span><span class="item-price">create, icon, arrow, plot/show image</span></div>
+                <div class="item"><span class="item-name">Music</span><span class="item-price">melodies, tone, rest</span></div>
+                <div class="item"><span class="item-name">Math</span><span class="item-price">pick random, random true/false, Math</span></div>
+                <p class="note">
+                    <span class="de">Nicht dabei: Funk, Pins, Sensoren, Logo, Spielstand und Buchstaben in „show string“. Ein nicht unterstützter Block stoppt das Programm mit einer Meldung.</span>
+                    <span class="en">Not included: radio, pins, sensors, logo, game score and letters in "show string". An unsupported block stops the program with a message.</span>
+                </p>
+            </div>
+        </details>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+            <span class="nowrap"><a href="https://github.com/fgreil/micro-bit" target="_blank" rel="noopener">github.com/fgreil/micro-bit</a> &star;</span>
+            <span class="nowrap"><a href="mailto:info@f418.eu">info@f418.eu</a> &star;</span>
+            <span class="nowrap">2026-11-23</span>
+        </div>
+    </div>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------- display
+const ledEls = [];
+for (let i = 0; i < 25; i++) {
+  const d = document.createElement("div"); d.className = "led";
+  document.getElementById("leds").appendChild(d); ledEls.push(d);
+}
+const screen = new Array(25).fill(0);             // brightness 0..255
+(function draw() {
+  for (let i = 0; i < 25; i++) {
+    const b = screen[i];
+    ledEls[i].style.background = b ? `rgba(255, 40, 40, ${0.3 + 0.7 * b / 255})` : "#333";
+    ledEls[i].style.boxShadow = b ? `0 0 ${4 + 6 * b / 255}px rgba(255, 40, 40, 0.8)` : "none";
+  }
+  requestAnimationFrame(draw);
+})();
+
+// ---------------------------------------------------------------- runtime state
+let gen = 0;                 // increases on every Run/Stop; old code stops at its next wait
+let handlers = {};
+let sprites = [];
+let paused = false;
+let engineTimer = null;
+class Stop extends Error {}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function wait(ms) {
+  const g = gen;
+  await sleep(Math.max(0, ms | 0));
+  if (g !== gen) throw new Stop();
+}
+let lastYield = performance.now();
+async function __tick() {                // inserted into every loop so the page never freezes
+  const g = gen;
+  if (performance.now() - lastYield > 25) { await sleep(0); lastYield = performance.now(); }
+  if (g !== gen) throw new Stop();
+}
+function fail(e) {
+  let msg = (e && e.message) || String(e);
+  const m = e instanceof ReferenceError && msg.match(/^(\S+) is not defined/);
+  if (m) msg = `"${m[1]}" is not supported by this emulator (or not defined in the program)`;
+  document.getElementById("err").textContent = msg;
+  stop("Stopped (error)");
+}
+function fiber(fn) {                     // run code "in the background" like a micro:bit fiber
+  const g = gen;
+  setTimeout(async () => {
+    if (g !== gen) return;
+    try { await fn(); } catch (e) { if (!(e instanceof Stop) && g === gen) fail(e); }
+  }, 0);
+}
+function fire(key) {                     // events queue while their handler is still running
+  const h = handlers[key];
+  if (!h) return;
+  if (h.running) { h.pending++; return; }
+  const g = gen;
+  h.running = true;
+  fiber(async () => {
+    try { await h.fn(); }
+    finally {
+      if (g === gen) {
+        h.running = false;
+        if (h.pending > 0) { h.pending--; fire(key); }
+      }
+    }
+  });
+}
+
+// ---------------------------------------------------------------- images and font
+const rowsFrom = s => s.split("\n").map(l => l.match(/[#.]/g)).filter(Boolean).map(r => r.map(c => c === "#" ? 255 : 0));
+const pic = s => rowsFrom(s.split("/").join("\n"));
+class Img {
+  constructor(rows) { this.rows = rows; }
+  width() { return this.rows[0].length; }
+  height() { return 5; }
+  plotImage(off = 0) {
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 5; x++) {
+      const c = x + off;
+      screen[y * 5 + x] = c >= 0 && c < this.width() ? this.rows[y][c] : 0;
+    }
+  }
+  async showImage(off = 0, interval = 400) { this.plotImage(off); await wait(interval); }
+  pixel(x, y) { return this.rows[y] && this.rows[y][x] > 0; }
+  setPixel(x, y, on) { if (this.rows[y]) this.rows[y][x] = on ? 255 : 0; }
+}
+const ICONS = {
+  Heart: ". # . # . / # # # # # / # # # # # / . # # # . / . . # . .",
+  SmallHeart: ". . . . . / . # . # . / . # # # . / . . # . . / . . . . .",
+  Yes: ". . . . . / . . . . # / . . . # . / # . # . . / . # . . .",
+  No: "# . . . # / . # . # . / . . # . . / . # . # . / # . . . #",
+  Happy: ". . . . . / . # . # . / . . . . . / # . . . # / . # # # .",
+  Sad: ". . . . . / . # . # . / . . . . . / . # # # . / # . . . #",
+  Confused: ". . . . . / . # . # . / . . . . . / . # . # . / # . # . #",
+  Angry: "# . . . # / . # . # . / . . . . . / # # # # # / # . # . #",
+  Asleep: ". . . . . / # # . # # / . . . . . / . # # # . / . . . . .",
+  Surprised: ". # . # . / . . . . . / . . # . . / . # . # . / . . # . .",
+  Square: "# # # # # / # . . . # / # . . . # / # . . . # / # # # # #",
+  SmallSquare: ". . . . . / . # # # . / . # . # . / . # # # . / . . . . .",
+  Diamond: ". . # . . / . # . # . / # . . . # / . # . # . / . . # . .",
+  SmallDiamond: ". . . . . / . . # . . / . # . # . / . . # . . / . . . . .",
+  Target: ". . # . . / . # # # . / # # . # # / . # # # . / . . # . .",
+  Chessboard: ". # . # . / # . # . # / . # . # . / # . # . # / . # . # .",
+};
+const ARROWS = [  // North, NorthEast, East, SouthEast, South, SouthWest, West, NorthWest
+  ". . # . . / . # # # . / # . # . # / . . # . . / . . # . .",
+  ". . # # # / . . . # # / . . # . # / . # . . . / # . . . .",
+  ". . # . . / . . . # . / # # # # # / . . . # . / . . # . .",
+  "# . . . . / . # . . . / . . # . # / . . . # # / . . # # #",
+  ". . # . . / . . # . . / # . # . # / . # # # . / . . # . .",
+  ". . . . # / . . . # . / # . # . . / # # . . . / # # # . .",
+  ". . # . . / . # . . . / # # # # # / . # . . . / . . # . .",
+  "# # # . . / # # . . . / # . # . . / . . . # . / . . . . #",
+];
+const FONT = {
+  "0": ". # # . . / # . . # . / # . . # . / # . . # . / . # # . .",
+  "1": ". . # . . / . # # . . / . . # . . / . . # . . / . # # # .",
+  "2": "# # # . . / . . . # . / . # # . . / # . . . . / # # # # .",
+  "3": "# # # # . / . . . # . / . . # . . / # . . # . / . # # . .",
+  "4": ". . # # . / . # . # . / # . . # . / # # # # # / . . . # .",
+  "5": "# # # # # / # . . . . / # # # # . / . . . . # / # # # # .",
+  "6": ". . . # . / . . # . . / . # # # . / # . . . # / . # # # .",
+  "7": "# # # # # / . . . # . / . . # . . / . # . . . / # . . . .",
+  "8": ". # # # . / # . . . # / . # # # . / # . . . # / . # # # .",
+  "9": ". # # # . / # . . . # / . # # # . / . . # . . / . # . . .",
+  "-": ". . . . . / . . . . . / . # # # . / . . . . . / . . . . .",
+  ".": ". . . . . / . . . . . / . . . . . / . . . . . / . . # . .",
+  " ": ". . . . . / . . . . . / . . . . . / . . . . . / . . . . .",
+};
+const glyph = ch => pic(FONT[ch] || ICONS.SmallSquare);   // letters are not in the font: shown as a small square
+
+// ---------------------------------------------------------------- micro:bit API
+const strict = (name, o) => new Proxy(o, { get(t, k) {
+  if (k in t || typeof k === "symbol") return t[k];
+  throw new Error(`${name}.${String(k)} is not supported by this emulator`);
+}});
+const names = () => new Proxy({}, { get: (t, k) => k });          // enums like Melodies.PowerUp -> "PowerUp"
+const randint = (a, b) => { if (a > b) [a, b] = [b, a]; return a + Math.floor(Math.random() * (b - a + 1)); };
+
+async function showString(text, interval = 150) {
+  text = String(text);
+  if (interval <= 0) interval = 1;
+  if (text.length === 0) { screen.fill(0); await wait(interval * 5); return; }
+  if (text.length === 1) { new Img(glyph(text)).plotImage(0); await wait(interval * 5); return; }
+  const rows = [[], [], [], [], []];                 // build one wide image and scroll it
+  const add = g => g.forEach((r, y) => rows[y].push(...r, 0));
+  add(pic(FONT[" "]));
+  for (const ch of text) add(glyph(ch));
+  const img = new Img(rows);
+  for (let off = 0; off <= img.width() - 5; off++) { img.plotImage(off); await wait(interval); }
+  screen.fill(0);
+}
+const basic = strict("basic", {
+  pause: ms => wait(ms),
+  clearScreen() { screen.fill(0); },
+  async showLeds(leds, interval = 400) { new Img(rowsFrom(leds)).plotImage(0); await wait(interval); },
+  async showIcon(icon, interval = 600) {
+    if (!ICONS[icon]) throw new Error(`Icon "${icon}" is not supported by this emulator`);
+    new Img(pic(ICONS[icon])).plotImage(0); await wait(interval);
+  },
+  async showArrow(dir, interval = 600) { new Img(pic(ARROWS[((dir % 8) + 8) % 8])).plotImage(0); await wait(interval); },
+  showString,
+  showNumber: (n, interval) => showString(String(Math.round(n * 100) / 100), interval),
+  forever(fn) { fiber(async () => { for (;;) { await fn(); await wait(20); } }); },
+});
+const input = strict("input", {
+  onButtonPressed(btn, fn) { handlers["btn:" + btn] = { fn, running: false, pending: 0 }; },
+  onGesture(g, fn) { handlers["g:" + g] = { fn, running: false, pending: 0 }; },
+  runningTime: () => Math.round(performance.now() - startTime),
+});
+const led = strict("led", {
+  plot(x, y) { if (x >= 0 && x < 5 && y >= 0 && y < 5) screen[y * 5 + x] = 255; },
+  unplot(x, y) { if (x >= 0 && x < 5 && y >= 0 && y < 5) screen[y * 5 + x] = 0; },
+  toggle(x, y) { if (x >= 0 && x < 5 && y >= 0 && y < 5) screen[y * 5 + x] = screen[y * 5 + x] ? 0 : 255; },
+  point: (x, y) => x >= 0 && x < 5 && y >= 0 && y < 5 && screen[y * 5 + x] > 0,
+  plotBrightness(x, y, b) { if (x >= 0 && x < 5 && y >= 0 && y < 5) screen[y * 5 + x] = Math.max(0, Math.min(255, b)); },
+});
+const images = strict("images", {
+  createImage: s => new Img(rowsFrom(s)),
+  createBigImage: s => new Img(rowsFrom(s)),
+  iconImage: name => new Img(pic(ICONS[name] || ICONS.SmallSquare)),
+  arrowImage: dir => new Img(pic(ARROWS[dir])),
+});
+const ArrowNames = { North: 0, NorthEast: 1, East: 2, SouthEast: 3, South: 4, SouthWest: 5, West: 6, NorthWest: 7 };
+const Button = { A: "A", B: "B", AB: "AB" };
+
+// sound: rough versions of the built-in melodies
+let audio = null, voices = [];
+const MELODIES = {
+  JumpUp: [[523, 60], [659, 60], [784, 60], [1047, 100]],
+  JumpDown: [[1047, 60], [784, 60], [659, 60], [523, 100]],
+  PowerUp: [[392, 90], [523, 90], [659, 90], [784, 180], [659, 90], [784, 260]],
+  PowerDown: [[784, 90], [659, 90], [523, 90], [392, 180], [330, 90], [262, 320]],
+  BaDing: [[988, 90], [1319, 320]],
+  Wawawawaa: [[330, 260], [311, 260], [294, 260], [277, 600]],
+};
+function playNotes(notes) {
+  if (!audio) return notes.reduce((t, n) => t + n[1], 0);
+  let t = audio.currentTime, total = 0;
+  for (const [f, ms] of notes) {
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = "square"; o.frequency.value = f; g.gain.value = 0.04;
+    o.connect(g).connect(audio.destination);
+    o.start(t); o.stop(t + ms / 1000);
+    voices.push(o); t += ms / 1000; total += ms;
+  }
+  return total;
+}
+function stopSound() { voices.forEach(o => { try { o.stop(); } catch (e) {} }); voices = []; }
+const music = strict("music", {
+  PlaybackMode: { UntilDone: 0, InBackground: 1, LoopingInBackground: 2 },
+  builtInPlayableMelody: name => ({ notes: MELODIES[name] || [[880, 120], [660, 120]] }),
+  builtinPlayableSoundEffect: () => ({ notes: [[660, 80], [990, 120]] }),
+  async play(p, mode = 0) { const ms = playNotes(p.notes); if (mode === 0) await wait(ms); },
+  async playTone(freq, ms) { playNotes([[freq, ms]]); await wait(ms); },
+  rest: ms => wait(ms),
+  stopAllSounds: stopSound,
+  setVolume() {},
+});
+
+// sprites (same rules as MakeCode's game engine: clamp to 0..4, redraw every 30 ms unless paused)
+const LedSpriteProperty = { X: "x", Y: "y", Direction: "dir", Brightness: "brightness", Blink: "blink" };
+const clamp = (lo, hi, v) => Math.max(lo, Math.min(hi, v));
+function render() {
+  if (paused || !sprites.length) return;
+  screen.fill(0);
+  for (const s of sprites) screen[s.y * 5 + s.x] = Math.max(screen[s.y * 5 + s.x], s.brightness);
+}
+class Sprite {
+  constructor(x, y) { this.x = clamp(0, 4, x); this.y = clamp(0, 4, y); this.dir = 90; this.brightness = 255; this.blink = 0; this.enabled = true; }
+  get(p) { return this[p]; }
+  set(p, v) {
+    if (p === "x" || p === "y") v = clamp(0, 4, v);
+    if (p === "brightness") v = clamp(0, 255, v);
+    this[p] = v; render();
+  }
+  change(p, v) { this.set(p, this.get(p) + v); }
+  move(n) {
+    const d = { 0: [0, -1], 45: [1, -1], 90: [1, 0], 135: [1, 1], 180: [0, 1], "-45": [-1, -1], "-90": [-1, 0] }[this.dir] || [-1, 1];
+    this.x = clamp(0, 4, this.x + d[0] * n); this.y = clamp(0, 4, this.y + d[1] * n); render();
+  }
+  goTo(x, y) { this.x = clamp(0, 4, x); this.y = clamp(0, 4, y); render(); }
+  isTouching(o) { return this.enabled && o.enabled && this.x === o.x && this.y === o.y; }
+  isTouchingEdge() { return this.enabled && (this.x === 0 || this.x === 4 || this.y === 0 || this.y === 4); }
+  delete() { this.enabled = false; sprites = sprites.filter(s => s !== this); render(); }
+}
+const game = strict("game", {
+  createSprite(x, y) {
+    const s = new Sprite(x, y); sprites.push(s);
+    if (!engineTimer) engineTimer = setInterval(render, 30);
+    render(); return s;
+  },
+  pause() { render(); paused = true; },
+  resume() { paused = false; render(); },
+  isPaused: () => paused,
+});
+const MathX = Object.assign(Object.create(Math), {
+  randomBoolean: () => Math.random() < 0.5,
+  randomRange: randint,
+  idiv: (a, b) => Math.trunc(a / b),
+  constrain: (v, lo, hi) => clamp(lo, hi, v),
+  map: (v, a, b, c, d) => (v - a) * (d - c) / (b - a) + c,
+});
+const API = { basic, input, led, images, music, game, randint, Math: MathX, Button, Gesture: names(), IconNames: names(),
+              ArrowNames, Melodies: names(), LedSpriteProperty, __tick };
+
+// ---------------------------------------------------------------- TypeScript -> async JavaScript
+const TYPES = "(?:number|string|boolean|any|void|Image|game\\.LedSprite)(?:\\s*\\[\\])*";
+function transpile(src) {
+  let s = src;
+  s = s.replace(new RegExp(`\\)\\s*:\\s*${TYPES}\\s*\\{`, "g"), ") {");                  // return types
+  s = s.replace(new RegExp(`([A-Za-z_$][\\w$]*)\\s*:\\s*${TYPES}`, "g"), "$1");          // parameter and variable types
+  const funcs = [...s.matchAll(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]);
+  s = s.replace(/\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g, "async function \u0001$1(");     // own functions
+  s = s.replace(/\bfunction\s*\(/g, "async function (");                                 // callbacks
+  s = s.replace(/(\([^()]*\)|\b[A-Za-z_$][\w$]*)\s*=>/g, "async $1 =>");                  // arrow functions
+  for (const n of funcs)                                                                  // calls of own functions wait
+    s = s.replace(new RegExp(`(^|[^\\w$.\\u0001])(${n.replace(/\$/g, "\\$")})\\s*\\(`, "gm"), "$1await $2(");
+  s = s.replace(/\u0001/g, "");
+  s = s.replace(/(^|[^\w$.])((?:basic\.(?:pause|show\w+)|music\.(?:play|playTone|rest))\s*\()/gm, "$1await $2");
+  s = s.replace(/(^|[^\w$.])([A-Za-z_$][\w$.\[\]]*\.showImage\s*\()/gm, "$1await $2");
+  s = s.replace(/(\b(?:while|for)\s*\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*\{)/g, "$1 await __tick();");
+  return s;
+}
+
+// ---------------------------------------------------------------- run / stop
+const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+let startTime = performance.now();
+const STATUS = { "Stopped": "Gestoppt", "Running": "Läuft", "Stopped (error)": "Gestoppt (Fehler)" };
+let lang = "de", statusKey = "Stopped";
+function setStatus(t) { statusKey = t; document.getElementById("status").textContent = lang === "de" ? (STATUS[t] || t) : t; }
+function setLanguage(l) {
+  lang = l;
+  document.body.classList.toggle("lang-de", l === "de");
+  document.body.classList.toggle("lang-en", l === "en");
+  document.documentElement.lang = l;
+  document.getElementById("langDE").classList.toggle("active", l === "de");
+  document.getElementById("langEN").classList.toggle("active", l === "en");
+  setStatus(statusKey);
+}
+document.getElementById("langDE").addEventListener("click", () => setLanguage("de"));
+document.getElementById("langEN").addEventListener("click", () => setLanguage("en"));
+function stop(text = "Stopped") {
+  gen++; handlers = {}; sprites = []; paused = false;
+  clearInterval(engineTimer); engineTimer = null; stopSound();
+  setStatus(text);
+}
+async function run() {
+  stop(); screen.fill(0);
+  document.getElementById("err").textContent = "";
+  if (!audio) { try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+  if (audio && audio.state === "suspended") audio.resume();
+  let program;
+  try { program = new AsyncFunction(...Object.keys(API), transpile(document.getElementById("code").value)); }
+  catch (e) { fail(new Error("Syntax error: " + e.message)); return; }
+  startTime = performance.now();
+  setStatus("Running");
+  const g = gen;
+  try { await program(...Object.values(API)); }        // "on start"
+  catch (e) { if (!(e instanceof Stop) && g === gen) fail(e); }
+}
+document.getElementById("run").onclick = run;
+document.getElementById("stop").onclick = () => { stop(); screen.fill(0); };
+document.getElementById("btnA").onclick = () => fire("btn:A");
+document.getElementById("btnB").onclick = () => fire("btn:B");
+document.getElementById("btnAB").onclick = () => fire("btn:AB");
+document.getElementById("btnShake").onclick = () => fire("g:Shake");
+function fitBoard() {                   // shrink the board on very narrow screens
+  const board = document.getElementById("board");
+  const s = Math.min(1, document.getElementById("boardWrap").clientWidth / 340);
+  board.style.transform = s < 1 ? `scale(${s})` : "";
+  board.style.marginBottom = s < 1 ? `${-240 * (1 - s)}px` : "";
+}
+window.addEventListener("resize", fitBoard);
+fitBoard();
+setLanguage("de");
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "TEXTAREA") return;
+  const k = { a: "btn:A", b: "btn:B", c: "btn:AB", s: "g:Shake" }[e.key.toLowerCase()];
+  if (k) fire(k);
+});
+</script>
+</body>
+</html>
